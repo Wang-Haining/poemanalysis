@@ -9,7 +9,6 @@ model_id = "gradientai/Llama-3-8B-Instruct-262k"
 nf4_config = BitsAndBytesConfig(
     load_in_4bit=True,
     bnb_4bit_quant_type="nf4",
-    bnb_4bit_use_double_quant=True,
     bnb_4bit_compute_dtype=torch.bfloat16
 )
 
@@ -46,15 +45,15 @@ def apply_instruction(text, system_prompt):
 
     terminators = [
         pipeline.tokenizer.eos_token_id,
-        pipeline.tokenizer.convert_tokens_to_ids("")
+        pipeline.tokenizer.convert_tokens_to_ids("<|eot_id|>")
     ]
 
     outputs = pipeline(
         prompt,
         max_new_tokens=8*1024,
         eos_token_id=terminators,
-        do_sample=False,
-        temperature=0.01
+        do_sample=True,
+        temperature=0.01,
     )
     result = outputs[0]["generated_text"][len(prompt):]
     return result
