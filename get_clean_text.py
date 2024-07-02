@@ -16,7 +16,6 @@ nf4_config = BitsAndBytesConfig(
 pipeline = transformers.pipeline(
     "text-generation",
     model=model_id,
-    model_kwargs={"torch_dtype": torch.bfloat16},
     quantization_config=nf4_config
 )
 
