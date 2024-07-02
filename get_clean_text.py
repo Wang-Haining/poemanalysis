@@ -97,7 +97,7 @@ with open(markdown_file_path, 'r') as file:
 processed_urls = load_processed_urls(output_file_path)
 
 # process new data and save the results
-processed_poem_data = process_texts_with_instruction(poem_data[:10], processed_urls, system_prompt)
+processed_poem_data = process_texts_with_instruction(poem_data[:1], processed_urls, system_prompt)
 save_to_jsonl(processed_poem_data, output_file_path)
 
 print(f"Data processed and saved to {output_file_path}")
