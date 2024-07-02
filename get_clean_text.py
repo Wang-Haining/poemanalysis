@@ -6,16 +6,16 @@ from transformers import BitsAndBytesConfig
 # load the model and tokenizer
 model_id = "gradientai/Llama-3-8B-Instruct-262k"
 
-nf4_config = BitsAndBytesConfig(
-    load_in_4bit=True,
-    bnb_4bit_quant_type="nf4",
-    bnb_4bit_compute_dtype=torch.bfloat16
-)
+# nf4_config = BitsAndBytesConfig(
+#     load_in_4bit=True,
+#     bnb_4bit_quant_type="nf4",
+#     bnb_4bit_compute_dtype=torch.bfloat16
+# )
 
 pipeline = transformers.pipeline(
     "text-generation",
     model=model_id,
-    quantization_config=nf4_config
+    device_map="auto", model_kwargs={"load_in_4bit": True}
 )
 
 # define the system prompt for the model
