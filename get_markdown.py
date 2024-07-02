@@ -6,20 +6,27 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from fake_useragent import UserAgent
 
 
-def get_markdown(url, headers):
+def get_markdown(url, headers, source):
     # fetch markdown content from the given URL
-    jina_reader_url = f'https://r.jina.ai/{url}'
-    response = requests.get(jina_reader_url, headers=headers)
+    if source == 'jina':
+        reader_url = f'https://r.jina.ai/{url}'
+    elif source == 'markdowner':
+        reader_url = f'https://md.dhr.wtf/?url={url}'
+    response = requests.get(reader_url, headers=headers)
     if response.status_code == 200:
         return response.text
     else:
         return None
 
 
-def process_entry(entry, headers):
+def process_entry(entry, headers, num_retries):
     # process a single entry to fetch its markdown content
     url = entry['url']
-    markdown = get_markdown(url, headers)
+    if num_retries >= 2:
+        source = 'jina'
+    else:
+        source = 'markdowner'
+    markdown = get_markdown(url, headers, source)
     if markdown:
         return {
             'title': entry['title'],
@@ -60,7 +67,7 @@ def process_poem_data(poem_data, success_file, max_retries=20, max_workers=4):
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_entry = {
-                executor.submit(process_entry, entry, {'User-Agent': ua.random}): entry
+                executor.submit(process_entry, entry, {'User-Agent': ua.random}, retries): entry
                 for entry in failures
             }
             for future in tqdm(as_completed(future_to_entry),
