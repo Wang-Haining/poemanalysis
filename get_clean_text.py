@@ -6,16 +6,18 @@ from transformers import BitsAndBytesConfig
 # load the model and tokenizer
 model_id = "gradientai/Llama-3-8B-Instruct-262k"
 
-# nf4_config = BitsAndBytesConfig(
-#     load_in_4bit=True,
-#     bnb_4bit_quant_type="nf4",
-#     bnb_4bit_compute_dtype=torch.bfloat16
-# )
+nf4_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_quant_type="nf4",
+    bnb_4bit_compute_dtype=torch.bfloat16
+)
 
 pipeline = transformers.pipeline(
     "text-generation",
     model=model_id,
-    device_map="auto", model_kwargs={"load_in_4bit": True}
+    device_map="auto",
+    quantization_config=nf4_config,
+    # model_kwargs={"load_in_4bit": True}
 )
 
 # define the system prompt for the model
@@ -70,6 +72,7 @@ def process_texts_with_instruction(data, processed_urls, system_prompt):
                 processed_data.append({'url': entry['url'], 'data': extracted_json})
             except json.JSONDecodeError:
                 print(f"Failed to decode JSON for entry: {entry['url']}")
+                print(extracted_data)
     return processed_data
 
 
