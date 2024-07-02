@@ -1,7 +1,6 @@
 import json
-import transformers
 import torch
-from transformers import BitsAndBytesConfig
+from transformers import BitsAndBytesConfig, AutoTokenizer, AutoModelForCausalLM
 
 # load the model and tokenizer
 model_id = "gradientai/Llama-3-8B-Instruct-262k"
@@ -12,12 +11,12 @@ nf4_config = BitsAndBytesConfig(
     bnb_4bit_compute_dtype=torch.bfloat16
 )
 
-pipeline = transformers.pipeline(
-    "text-generation",
-    model=model_id,
+tokenizer = AutoTokenizer.from_pretrained(model_id)
+model = AutoModelForCausalLM.from_pretrained(
+    model_id,
+    torch_dtype=torch.bfloat16,
     device_map="auto",
-    quantization_config=nf4_config,
-    # model_kwargs={"load_in_4bit": True}
+    quantization_config=nf4_config
 )
 
 # define the system prompt for the model
@@ -39,25 +38,21 @@ def apply_instruction(text, system_prompt):
         {"role": "user", "content": text},
     ]
 
-    prompt = pipeline.tokenizer.apply_chat_template(
+    input_ids = tokenizer.apply_chat_template(
         messages,
-        tokenize=False,
-        add_generation_prompt=True
-    )
+        add_generation_prompt=True,
+        return_tensors="pt"
+    ).to(model.device)
 
-    terminators = [
-        pipeline.tokenizer.eos_token_id,
-        pipeline.tokenizer.convert_tokens_to_ids("<|eot_id|>")
-    ]
-
-    outputs = pipeline(
-        prompt,
-        max_new_tokens=8*1024,
-        eos_token_id=terminators,
+    outputs = model.generate(
+        input_ids,
+        max_new_tokens=8192,
+        eos_token_id=tokenizer.eos_token_id,
         do_sample=True,
         temperature=0.01,
     )
-    result = outputs[0]["generated_text"][len(prompt):]
+    response = outputs[0][input_ids.shape[-1]:]
+    result = tokenizer.decode(response, skip_special_tokens=True)
     return result
 
 
@@ -67,12 +62,7 @@ def process_texts_with_instruction(data, processed_urls, system_prompt):
         if entry['url'] not in processed_urls:
             text = entry['markdown']
             extracted_data = apply_instruction(text, system_prompt)
-            try:
-                extracted_json = json.loads(extracted_data)
-                processed_data.append({'url': entry['url'], 'data': extracted_json})
-            except json.JSONDecodeError:
-                print(f"Failed to decode JSON for entry: {entry['url']}")
-                print(extracted_data)
+            processed_data.append({'url': entry['url'], 'clean_text': extracted_data})
     return processed_data
 
 
@@ -97,7 +87,7 @@ def load_processed_urls(file_path):
 markdown_file_path = 'poemAnalysis_success.jsonl'
 output_file_path = 'poemAnalysis_corpus.jsonl'
 
-# load LLM-friendly text data
+# load markdown files
 poem_data = []
 with open(markdown_file_path, 'r') as file:
     for line in file:
@@ -107,7 +97,7 @@ with open(markdown_file_path, 'r') as file:
 processed_urls = load_processed_urls(output_file_path)
 
 # process new data and save the results
-processed_poem_data = process_texts_with_instruction(poem_data, processed_urls, system_prompt)
+processed_poem_data = process_texts_with_instruction(poem_data[:10], processed_urls, system_prompt)
 save_to_jsonl(processed_poem_data, output_file_path)
 
 print(f"Data processed and saved to {output_file_path}")
